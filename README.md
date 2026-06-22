@@ -64,6 +64,17 @@ correctness or deploy anything. You stay in control:
 
 (The terminal IDE shows these guidelines each time it launches — press any key to continue.)
 
+## Uninstall
+
+```bash
+synapse uninstall            # shows how to remove it; --purge also deletes Synapse data
+cargo uninstall synapse-cli  # if installed via cargo
+npm uninstall -g athreix-synapse   # if installed via npm
+```
+
+`synapse uninstall --purge` additionally removes `~/.synapse` (config) and the
+current project's `.synapse/` (event log + snapshots).
+
 ## Layout
 
 ```

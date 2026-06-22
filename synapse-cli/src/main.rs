@@ -98,6 +98,13 @@ enum Cmd {
         #[arg(long, default_value_t = 30)]
         days: i64,
     },
+    /// How to uninstall Synapse; `--purge` also deletes its data.
+    Uninstall {
+        path: Option<String>,
+        /// Also delete Synapse data (~/.synapse config + this project's .synapse/).
+        #[arg(long)]
+        purge: bool,
+    },
 }
 
 // ── ANSI helpers (no extra deps; works in modern Windows terminals) ─────────
@@ -484,6 +491,50 @@ fn cmd_restore(root: PathBuf, id: String) -> Result<(), String> {
     Ok(())
 }
 
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from)
+}
+
+fn cmd_uninstall(root: PathBuf, purge: bool) -> Result<(), String> {
+    println!("{BOLD}Uninstall Synapse{RST}\n");
+    if let Ok(exe) = std::env::current_exe() {
+        println!("  binary: {DIM}{}{RST}", exe.display());
+    }
+    println!("\n  Remove the {BOLD}synapse{RST} command with whichever you used to install it:");
+    println!("    {CYN}cargo uninstall synapse-cli{RST}       {DIM}# if installed via cargo{RST}");
+    println!("    {CYN}npm uninstall -g athreix-synapse{RST}  {DIM}# if installed via npm{RST}");
+    if cfg!(windows) {
+        println!("  {DIM}(A program can't delete its own running .exe on Windows — the command above does.){RST}");
+    }
+
+    if purge {
+        println!();
+        let mut removed = 0;
+        if let Some(home) = home_dir() {
+            let cfg = home.join(".synapse");
+            if cfg.exists() && std::fs::remove_dir_all(&cfg).is_ok() {
+                println!("  {GRN}removed{RST} {}", cfg.display());
+                removed += 1;
+            }
+        }
+        let proj = PathBuf::from(root.to_string_lossy().trim_start_matches(r"\\?\").to_string()).join(".synapse");
+        if proj.exists() && std::fs::remove_dir_all(&proj).is_ok() {
+            println!("  {GRN}removed{RST} {}", proj.display());
+            removed += 1;
+        }
+        if removed == 0 {
+            println!("  {DIM}no Synapse data found to remove.{RST}");
+        }
+    } else {
+        println!(
+            "\n  {DIM}Add {RST}--purge{DIM} to also delete Synapse data (~/.synapse + this project's .synapse/).{RST}"
+        );
+    }
+    Ok(())
+}
+
 fn cmd_prune(root: PathBuf, days: i64) -> Result<(), String> {
     let (db, snaps) = open(&root)?;
     let before = now_ms() - days * 86_400_000;
@@ -628,6 +679,7 @@ fn main() {
         Some(Cmd::Policy { path }) => cmd_policy(resolve(&path)),
         Some(Cmd::Theme { name }) => cmd_theme(name),
         Some(Cmd::Prune { path, days }) => cmd_prune(resolve(&path), days),
+        Some(Cmd::Uninstall { path, purge }) => cmd_uninstall(resolve(&path), purge),
     };
     if let Err(e) = result {
         eprintln!("{RED}error:{RST} {e}");
