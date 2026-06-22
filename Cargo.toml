@@ -1,0 +1,14 @@
+# Synapse cargo workspace.
+# synapse-core: the tauri-free engine (events, store, snapshots, watcher, …).
+# synapse-cli : the primary terminal app (subcommands + dashboard TUI).
+# src-tauri   : the desktop GUI (kept building; frozen while CLI is the focus).
+[workspace]
+resolver = "2"
+members = ["synapse-core", "synapse-cli"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

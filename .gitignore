@@ -1,0 +1,13 @@
+# Rust (workspace target at repo root)
+/target/
+
+# Synapse local stores (per-project event + snapshot data)
+.synapse/
+
+# Tooling / local config
+.cortex/
+.claude/
+
+# OS / editor
+.DS_Store
+Thumbs.db
