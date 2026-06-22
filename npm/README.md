@@ -24,6 +24,16 @@ If a prebuilt binary isn't available for your platform, build from source instea
 cargo install --git https://github.com/TusharND12/athreix-synapse synapse-cli
 ```
 
+## Uninstall
+
+```bash
+synapse uninstall --purge          # deletes Synapse data (~/.synapse + this project's .synapse/)
+npm uninstall -g athreix-synapse   # removes the command itself
+```
+
+`synapse uninstall` (without `--purge`) just prints what to remove. Run the
+`--purge` step *before* `npm uninstall` if you want the data gone too.
+
 ## Links
 
 - Source & docs: https://github.com/TusharND12/athreix-synapse
