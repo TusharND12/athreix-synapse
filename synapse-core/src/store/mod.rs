@@ -2,6 +2,7 @@
 //! projections. Wraps a single connection behind a mutex so both the watcher
 //! thread and command handlers can use it.
 
+use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -343,6 +344,43 @@ impl Db {
             ))
         })?;
         rows.collect()
+    }
+
+    /// Delete events older than `before_ts` (retention). Returns rows removed.
+    pub fn prune_events(&self, before_ts: i64) -> usize {
+        let c = self.conn.lock().unwrap();
+        c.execute("DELETE FROM events WHERE ts < ?1", [before_ts]).unwrap_or(0)
+    }
+
+    /// Every snapshot blob hash still referenced by an event, file_stats row, or
+    /// checkpoint tree — i.e. blobs that must NOT be garbage-collected.
+    pub fn referenced_blobs(&self) -> HashSet<String> {
+        let c = self.conn.lock().unwrap();
+        let mut set = HashSet::new();
+        if let Ok(mut stmt) =
+            c.prepare("SELECT DISTINCT snapshot_id FROM events WHERE snapshot_id IS NOT NULL")
+        {
+            if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
+                set.extend(rows.flatten());
+            }
+        }
+        if let Ok(mut stmt) =
+            c.prepare("SELECT DISTINCT last_blob FROM file_stats WHERE last_blob IS NOT NULL")
+        {
+            if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
+                set.extend(rows.flatten());
+            }
+        }
+        if let Ok(mut stmt) = c.prepare("SELECT tree FROM checkpoints") {
+            if let Ok(rows) = stmt.query_map([], |r| r.get::<_, String>(0)) {
+                for t in rows.flatten() {
+                    if let Ok(map) = serde_json::from_str::<BTreeMap<String, String>>(&t) {
+                        set.extend(map.into_values());
+                    }
+                }
+            }
+        }
+        set
     }
 
     pub fn insert_checkpoint(

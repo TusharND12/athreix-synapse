@@ -92,6 +92,12 @@ enum Cmd {
     Policy { path: Option<String> },
     /// List themes, or set one: `synapse theme tokyo-night`.
     Theme { name: Option<String> },
+    /// Prune old events + garbage-collect unreferenced snapshots (bounds `.synapse/` growth).
+    Prune {
+        path: Option<String>,
+        #[arg(long, default_value_t = 30)]
+        days: i64,
+    },
 }
 
 // ── ANSI helpers (no extra deps; works in modern Windows terminals) ─────────
@@ -468,8 +474,25 @@ fn cmd_checkpoints(root: PathBuf) -> Result<(), String> {
 
 fn cmd_restore(root: PathBuf, id: String) -> Result<(), String> {
     let (db, snaps) = open(&root)?;
+    // Safety net: snapshot the current state before overwriting it.
+    let safety = uuid::Uuid::new_v4().to_string();
+    let _ = timemachine::create(&root, &db, &snaps, &safety, now_ms(), "before restore", true);
     let (written, deleted) = timemachine::restore(&root, &db, &snaps, &id)?;
-    println!("{GRN}OK{RST} restored - {written} files written, {deleted} removed");
+    println!(
+        "{GRN}OK{RST} restored - {written} files written, {deleted} removed {DIM}(a 'before restore' checkpoint was saved){RST}"
+    );
+    Ok(())
+}
+
+fn cmd_prune(root: PathBuf, days: i64) -> Result<(), String> {
+    let (db, snaps) = open(&root)?;
+    let before = now_ms() - days * 86_400_000;
+    let pruned = db.prune_events(before);
+    let refs = db.referenced_blobs();
+    let gced = snaps.gc(&refs).unwrap_or(0);
+    println!(
+        "{GRN}OK{RST} pruned {BOLD}{pruned}{RST} events older than {days}d, removed {BOLD}{gced}{RST} unreferenced snapshots"
+    );
     Ok(())
 }
 
@@ -604,6 +627,7 @@ fn main() {
         Some(Cmd::Rewind { minutes, path }) => cmd_rewind(resolve(&path), minutes),
         Some(Cmd::Policy { path }) => cmd_policy(resolve(&path)),
         Some(Cmd::Theme { name }) => cmd_theme(name),
+        Some(Cmd::Prune { path, days }) => cmd_prune(resolve(&path), days),
     };
     if let Err(e) = result {
         eprintln!("{RED}error:{RST} {e}");

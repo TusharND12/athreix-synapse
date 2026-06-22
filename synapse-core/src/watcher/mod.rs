@@ -48,6 +48,23 @@ pub fn is_ignored(path: &Path, root: &Path) -> bool {
     })
 }
 
+/// Files whose *contents* must never be copied into the snapshot store.
+pub fn is_secret(rel: &str) -> bool {
+    let name = rel.rsplit(['/', '\\']).next().unwrap_or(rel).to_lowercase();
+    name == ".env"
+        || name.starts_with(".env.")
+        || name.ends_with(".pem")
+        || name.ends_with(".key")
+        || name.ends_with(".pfx")
+        || name.ends_with(".p12")
+        || name == "id_rsa"
+        || name == "id_ed25519"
+        || name == ".npmrc"
+        || name == ".netrc"
+        || name.contains("secret")
+        || name.contains("credential")
+}
+
 fn rel_string(path: &Path, root: &Path) -> String {
     path.strip_prefix(root)
         .unwrap_or(path)
@@ -160,7 +177,15 @@ fn process_path(
     let rel = rel_string(path, root);
     let name = file_name(path);
 
-    let (added, removed, snapshot_hash) = match kind {
+    // Never snapshot secret files — surface the event for visibility, but do not
+    // copy their contents into the (plaintext) snapshot store.
+    let (added, removed, snapshot_hash) = if is_secret(&rel) {
+        if matches!(kind, EventKind::Deleted) {
+            db.bump_file(&rel, ts, 0, None);
+        }
+        (None, None, None)
+    } else {
+        match kind {
         EventKind::Created | EventKind::Modified => {
             let Ok(bytes) = std::fs::read(path) else {
                 return;
@@ -189,6 +214,7 @@ fn process_path(
             (None, None, None)
         }
         _ => (None, None, None),
+        }
     };
 
     let churn = added.unwrap_or(0) as i64 + removed.unwrap_or(0) as i64;
@@ -316,6 +342,17 @@ mod tests {
         assert!(is_ignored(Path::new("/proj/.git/HEAD"), root));
         assert!(is_ignored(Path::new("/proj/.synapse/synapse.db"), root));
         assert!(!is_ignored(Path::new("/proj/src/app.ts"), root));
+    }
+
+    #[test]
+    fn secrets_are_recognized() {
+        assert!(is_secret("config/.env"));
+        assert!(is_secret(".env.local"));
+        assert!(is_secret("keys/server.pem"));
+        assert!(is_secret("deploy/id_rsa"));
+        assert!(is_secret("src/jwt_secret.ts"));
+        assert!(!is_secret("src/app.ts"));
+        assert!(!is_secret("README.md"));
     }
 
     #[test]

@@ -27,23 +27,45 @@ blast radius so review is informed.
 ## 4. Reversibility as a safety net
 
 Time Machine — `synapse rewind <minutes>`, checkpoints, and per-event snapshots —
-makes any agent action undoable independent of the user's git. A hard floor
-against destructive automation (a "before rewind" checkpoint is auto-saved first).
+makes any agent action undoable independent of the user's git. Safety guarantees:
+- **Rewind never deletes unhistoried files** — only files Synapse has actually
+  recorded can be removed, so pre-existing/untouched files are always kept.
+- Both `rewind` and `restore` **auto-save a checkpoint of the current state first**,
+  so any restore is itself reversible.
+- Restores only ever touch the project tree and **skip** `.git`, `node_modules`,
+  `target`, etc.
 
-## 5. Process isolation
+## 5. Secrets are never snapshotted
+
+The watcher skips capturing the *contents* of secret files (`.env*`, `*.pem`,
+`*.key`, `id_rsa`, `.npmrc`, `*secret*`, `*credential*`, …): the event still shows
+in the timeline for visibility, but nothing sensitive is written to the (plaintext)
+snapshot store.
+
+## 6. Bounded, prunable storage
+
+`.synapse/` holds only this project's data. `synapse prune [--days N]` removes old
+events and garbage-collects unreferenced snapshot blobs, so storage stays bounded.
+
+## 7. Process isolation
 
 Agents launched via `synapse run` (or the bake-off) run as child processes with a
 scoped working directory; the bake-off isolates each agent in its own git
-worktree so they can't collide.
+worktree so they can't collide. Subprocesses (`git`, `clip`, the shell PTY) are
+always invoked with **arguments**, never an interpolated shell string — no command
+injection. There is no `unsafe` code and no network in the project.
 
 ## Threat model (v1)
 
 | Threat | Mitigation |
 |---|---|
-| Agent makes a destructive change | policy flags + Time Machine rewind/restore |
+| Agent makes a destructive change | policy flags + Time Machine (rewind keeps unhistoried files) |
+| Rewind/restore destroying data | scoped deletion + auto "before restore" checkpoint |
+| Secrets copied to disk | secret files are never snapshotted |
+| Unbounded `.synapse/` growth | `synapse prune` (event retention + blob GC) |
 | Malicious change hidden in noise | per-change explainability + risk + heatmap |
 | History rewritten to hide actions | append-only log + content-addressed snapshots |
-| Code content leaving the device | local-first; **no network at all** |
+| Code content leaving the device | local-first; **no network at all**; no `unsafe` |
 
 Out of scope for v1: a fully compromised host OS, or agents the user has
 deliberately granted unsandboxed shell access.

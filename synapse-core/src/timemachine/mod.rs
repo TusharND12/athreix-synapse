@@ -3,7 +3,7 @@
 //! map; restoring writes those blobs back. Entirely independent of the user's
 //! own git history. See docs/02-event-model.md and docs/03-database-schema.md.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::snapshots::Snapshots;
@@ -97,9 +97,8 @@ pub fn restore(
     Ok(restore_tree(root, snaps, &tree))
 }
 
-/// Write back every blob in `tree`, and delete tracked files absent from it.
-/// Returns (files_written, files_deleted). Shared by checkpoint + time rewind.
-pub fn restore_tree(root: &Path, snaps: &Snapshots, tree: &BTreeMap<String, String>) -> (usize, usize) {
+/// Write every blob in `tree` back to the working tree. Returns files written.
+fn write_tree(root: &Path, snaps: &Snapshots, tree: &BTreeMap<String, String>) -> usize {
     let mut written = 0usize;
     for (rel_path, hash) in tree {
         let abs = root.join(rel_path);
@@ -112,12 +111,42 @@ pub fn restore_tree(root: &Path, snaps: &Snapshots, tree: &BTreeMap<String, Stri
             }
         }
     }
+    written
+}
+
+/// Restore a full checkpoint tree: write its blobs back and delete every other
+/// working-tree file (a checkpoint is a complete snapshot, so this is faithful).
+pub fn restore_tree(root: &Path, snaps: &Snapshots, tree: &BTreeMap<String, String>) -> (usize, usize) {
+    let written = write_tree(root, snaps, tree);
     let mut current = Vec::new();
     collect_files(root, root, &mut current);
     let mut deleted = 0usize;
     for path in current {
         let r = rel(root, &path);
         if !tree.contains_key(&r) && std::fs::remove_file(&path).is_ok() {
+            deleted += 1;
+        }
+    }
+    (written, deleted)
+}
+
+/// Restore a *partial* (event-history) tree safely: write its blobs back, but
+/// only delete files Synapse actually has history for (`tracked`). Files that
+/// existed before Synapse started watching — and were never touched — are left
+/// untouched, so a time-rewind can never destroy unhistoried data.
+pub fn restore_tree_scoped(
+    root: &Path,
+    snaps: &Snapshots,
+    tree: &BTreeMap<String, String>,
+    tracked: &HashSet<String>,
+) -> (usize, usize) {
+    let written = write_tree(root, snaps, tree);
+    let mut current = Vec::new();
+    collect_files(root, root, &mut current);
+    let mut deleted = 0usize;
+    for path in current {
+        let r = rel(root, &path);
+        if tracked.contains(&r) && !tree.contains_key(&r) && std::fs::remove_file(&path).is_ok() {
             deleted += 1;
         }
     }
@@ -145,11 +174,13 @@ pub fn state_at(
     map
 }
 
-/// Restore the working tree to its exact state at timestamp `at`.
+/// Restore the working tree to its state at timestamp `at`. Safe: only files
+/// Synapse has history for can be removed; pre-existing untouched files are kept.
 pub fn restore_at(root: &Path, db: &Db, snaps: &Snapshots, at: i64) -> Result<(usize, usize), String> {
     let versions = db.file_versions().map_err(|e| e.to_string())?;
     let tree = state_at(&versions, at);
-    Ok(restore_tree(root, snaps, &tree))
+    let tracked: HashSet<String> = versions.into_iter().map(|(_, p, _, _)| p).collect();
+    Ok(restore_tree_scoped(root, snaps, &tree, &tracked))
 }
 
 #[cfg(test)]
@@ -191,6 +222,35 @@ mod tests {
         assert_eq!(std::fs::read(root.join("a.txt")).unwrap(), b"hello\n");
         assert_eq!(std::fs::read(root.join("src/main.rs")).unwrap(), b"fn main() {}\n");
         assert!(!root.join("c.txt").exists());
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn scoped_restore_never_deletes_untracked_files() {
+        let root = temp();
+        let synapse_dir = root.join(".synapse");
+        std::fs::create_dir_all(&synapse_dir).unwrap();
+        let snaps = Snapshots::open(&synapse_dir).unwrap();
+
+        // a.txt = tracked & present at target; gone.txt = tracked but created after
+        // target; keep.txt = pre-existing, never tracked.
+        let blob_a = snaps.write_blob(b"A-at-target\n").unwrap();
+        std::fs::write(root.join("a.txt"), b"A-changed\n").unwrap();
+        std::fs::write(root.join("gone.txt"), b"made later\n").unwrap();
+        std::fs::write(root.join("keep.txt"), b"pre-existing\n").unwrap();
+
+        let mut tree = BTreeMap::new();
+        tree.insert("a.txt".to_string(), blob_a);
+        let tracked: HashSet<String> =
+            ["a.txt", "gone.txt"].iter().map(|s| s.to_string()).collect();
+
+        let (written, deleted) = restore_tree_scoped(&root, &snaps, &tree, &tracked);
+        assert_eq!(written, 1);
+        assert_eq!(deleted, 1, "only the tracked-but-absent file is removed");
+        assert_eq!(std::fs::read(root.join("a.txt")).unwrap(), b"A-at-target\n");
+        assert!(!root.join("gone.txt").exists(), "tracked file created later is removed");
+        assert!(root.join("keep.txt").exists(), "untracked pre-existing file is KEPT");
 
         std::fs::remove_dir_all(&root).ok();
     }

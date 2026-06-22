@@ -75,6 +75,32 @@ impl Snapshots {
     pub fn read_text(&self, hash: &str) -> Option<String> {
         self.read_blob(hash).ok().and_then(|b| String::from_utf8(b).ok())
     }
+
+    /// Delete every blob not present in `referenced` (garbage collection). Also
+    /// removes any stray `.tmp` files. Returns the number of files removed.
+    pub fn gc(&self, referenced: &std::collections::HashSet<String>) -> std::io::Result<usize> {
+        let mut removed = 0usize;
+        let subs = match fs::read_dir(&self.blobs_dir) {
+            Ok(s) => s,
+            Err(_) => return Ok(0),
+        };
+        for sub in subs.flatten() {
+            if !sub.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let prefix = sub.file_name().to_string_lossy().to_string();
+            if let Ok(files) = fs::read_dir(sub.path()) {
+                for f in files.flatten() {
+                    let rest = f.file_name().to_string_lossy().to_string();
+                    let hash = format!("{prefix}{rest}");
+                    if !referenced.contains(&hash) && fs::remove_file(f.path()).is_ok() {
+                        removed += 1;
+                    }
+                }
+            }
+        }
+        Ok(removed)
+    }
 }
 
 #[cfg(test)]
