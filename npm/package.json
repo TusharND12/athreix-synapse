@@ -1,6 +1,6 @@
 {
   "name": "athreix-synapse",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Synapse — the terminal-native OS for AI coding agents. A VS Code-style TUI for Claude Code / Gemini / Aider, fully offline.",
   "bin": {
     "synapse": "bin/synapse.js"
