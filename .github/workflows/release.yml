@@ -1,0 +1,49 @@
+name: release
+
+# Tag a version (e.g. `git tag v0.1.0 && git push --tags`) to build per-OS
+# binaries and attach them to the GitHub Release. The npm package's installer
+# downloads these assets by name.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.asset }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset: synapse-linux-x64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            asset: synapse-macos-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset: synapse-macos-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: synapse-windows-x64.exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release -p synapse-cli --target ${{ matrix.target }}
+      - name: Stage binary
+        shell: bash
+        run: |
+          src="target/${{ matrix.target }}/release/synapse"
+          [ "${{ runner.os }}" = "Windows" ] && src="$src.exe"
+          cp "$src" "${{ matrix.asset }}"
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset }}

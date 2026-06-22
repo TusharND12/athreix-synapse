@@ -4,6 +4,11 @@
 # Synapse local stores (per-project event + snapshot data)
 .synapse/
 
+# npm package — installer-downloaded binary + deps (not source)
+npm/node_modules/
+npm/bin/synapse-bin
+npm/bin/synapse.exe
+
 # Tooling / local config
 .cortex/
 .claude/

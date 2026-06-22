@@ -1,0 +1,49 @@
+{
+  "name": "athreix-synapse",
+  "version": "0.1.0",
+  "description": "Synapse — the terminal-native OS for AI coding agents. A VS Code-style TUI for Claude Code / Gemini / Aider, fully offline.",
+  "bin": {
+    "synapse": "bin/synapse.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin/synapse.js",
+    "install.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "keywords": [
+    "ai",
+    "terminal",
+    "tui",
+    "coding-agent",
+    "claude",
+    "aider",
+    "observability",
+    "offline",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TusharND12/athreix-synapse.git"
+  },
+  "homepage": "https://github.com/TusharND12/athreix-synapse#readme",
+  "bugs": {
+    "url": "https://github.com/TusharND12/athreix-synapse/issues"
+  },
+  "author": "Athreix",
+  "license": "MIT"
+}
