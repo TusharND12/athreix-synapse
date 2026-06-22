@@ -49,6 +49,21 @@ synapse theme [name]          # list / set theme (deep-space, tokyo-night, nord,
 
 Everything writes to a local `.synapse/` folder per project (SQLite + snapshots).
 
+## Before you commit or deploy
+
+Synapse **observes and records** what AI agents change — it does **not** verify
+correctness or deploy anything. You stay in control:
+
+- **Review changes** before committing/deploying — Git panel + diff (`F6 → Git`),
+  or `synapse log` / `synapse recap`.
+- **It's reversible** — checkpoints + `synapse rewind <minutes>` undo agent work
+  (rewind never deletes files it has no history for; a "before" checkpoint is
+  auto-saved).
+- **Secrets** (`.env`, keys) are never snapshotted; `synapse policy` shows guardrails.
+- **Run your own tests/builds** — Synapse won't do it for you.
+
+(The terminal IDE shows these guidelines once on first run.)
+
 ## Layout
 
 ```

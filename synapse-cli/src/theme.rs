@@ -150,6 +150,30 @@ pub fn load() -> Theme {
     by_name(&load_name()).unwrap_or_else(default_theme)
 }
 
+/// Whether the first-run usage guideline has already been shown.
+pub fn intro_seen() -> bool {
+    std::fs::read_to_string(config_path())
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v.get("intro_seen").and_then(|b| b.as_bool()))
+        .unwrap_or(false)
+}
+
+pub fn mark_intro_seen() {
+    let path = config_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let mut v = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    v["intro_seen"] = serde_json::json!(true);
+    if let Ok(s) = serde_json::to_string_pretty(&v) {
+        let _ = std::fs::write(&path, s);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

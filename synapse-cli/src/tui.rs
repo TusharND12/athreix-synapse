@@ -667,6 +667,7 @@ pub fn run(root: PathBuf) -> Result<(), String> {
     let mut panes = Panes { exp_w: 28, right_w: 40, hsplit: 45 };
     let mut drag: Option<u8> = None; // 0=explorer|center, 1=center|right, 2=git/activity
     let mut sel: Option<Sel> = None; // mouse text selection in the terminal pane
+    let mut intro = !crate::theme::intro_seen(); // first-run usage guideline
     let mut dirty = true;
     let mut last_beat = std::time::Instant::now();
     let mut last_git = std::time::Instant::now();
@@ -717,7 +718,7 @@ pub fn run(root: PathBuf) -> Result<(), String> {
                 ui(
                     f, &ui_theme, &panes, &terms, active, center, &rows, exp_sel, &recent, sessions.len(), &gitst,
                     focus, &editor, editor_scroll, &editor_title, &diff, diff_scroll, &diff_title,
-                    &palette, &quick, &bakeoff, &sel, &root, &status_msg,
+                    &palette, &quick, &bakeoff, &sel, intro, &root, &status_msg,
                 );
             }) {
                 break Err(e.to_string());
@@ -872,6 +873,13 @@ pub fn run(root: PathBuf) -> Result<(), String> {
 
         let Event::Key(k) = ev else { continue };
         if k.kind != KeyEventKind::Press {
+            continue;
+        }
+
+        // First-run usage guideline: any key dismisses it (shown once).
+        if intro {
+            intro = false;
+            crate::theme::mark_intro_seen();
             continue;
         }
 
@@ -1302,6 +1310,7 @@ fn ui(
     quick: &Option<QuickOpen>,
     bakeoff: &Option<BakeOff>,
     sel: &Option<Sel>,
+    intro: bool,
     root: &PathBuf,
     status_msg: &str,
 ) {
@@ -1492,6 +1501,37 @@ fn ui(
         f.render_widget(
             Paragraph::new(lines).block(
                 Block::default().borders(Borders::ALL).border_style(Style::default().fg(EMERALD)).title(" Agent Bake-off "),
+            ),
+            area,
+        );
+    }
+
+    // First-run usage guideline (shown once)
+    if intro {
+        let area = centered(66, 60, f.area());
+        f.render_widget(Clear, area);
+        let g = |s: &str| Line::from(Span::styled(s.to_string(), Style::default().fg(theme.fg)));
+        let bullet = |s: &str| Line::from(Span::styled(format!("  • {s}"), Style::default().fg(theme.muted)));
+        let lines = vec![
+            Line::from(Span::styled("Welcome to Synapse", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD))),
+            Line::from(""),
+            g("Synapse observes and records what AI agents change."),
+            g("It does not verify correctness — you stay in control."),
+            Line::from(""),
+            Line::from(Span::styled("Before you commit or deploy:", Style::default().fg(theme.accent2).add_modifier(Modifier::BOLD))),
+            bullet("Review changes in the Git panel / preview diff (F6 → Git)."),
+            bullet("Use checkpoints + `synapse rewind` to undo (reversible)."),
+            bullet("Secrets (.env, keys) are never stored; `synapse policy` shows guardrails."),
+            bullet("Run tests/builds yourself — Synapse won't deploy for you."),
+            Line::from(""),
+            Line::from(Span::styled("Press any key to continue.", Style::default().fg(theme.muted))),
+        ];
+        f.render_widget(
+            Paragraph::new(lines).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(theme.accent))
+                    .title(" Guidelines "),
             ),
             area,
         );
