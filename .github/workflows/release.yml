@@ -21,6 +21,9 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             asset: synapse-linux-x64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            asset: synapse-linux-arm64
           - os: macos-latest
             target: x86_64-apple-darwin
             asset: synapse-macos-x64
@@ -30,6 +33,9 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             asset: synapse-windows-x64.exe
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            asset: synapse-windows-arm64.exe
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
