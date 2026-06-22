@@ -667,7 +667,7 @@ pub fn run(root: PathBuf) -> Result<(), String> {
     let mut panes = Panes { exp_w: 28, right_w: 40, hsplit: 45 };
     let mut drag: Option<u8> = None; // 0=explorer|center, 1=center|right, 2=git/activity
     let mut sel: Option<Sel> = None; // mouse text selection in the terminal pane
-    let mut intro = !crate::theme::intro_seen(); // first-run usage guideline
+    let mut intro = true; // usage guideline shown on every launch
     let mut dirty = true;
     let mut last_beat = std::time::Instant::now();
     let mut last_git = std::time::Instant::now();
@@ -876,10 +876,9 @@ pub fn run(root: PathBuf) -> Result<(), String> {
             continue;
         }
 
-        // First-run usage guideline: any key dismisses it (shown once).
+        // Usage guideline (shown every launch): any key dismisses it.
         if intro {
             intro = false;
-            crate::theme::mark_intro_seen();
             continue;
         }
 

@@ -62,7 +62,7 @@ correctness or deploy anything. You stay in control:
 - **Secrets** (`.env`, keys) are never snapshotted; `synapse policy` shows guardrails.
 - **Run your own tests/builds** — Synapse won't do it for you.
 
-(The terminal IDE shows these guidelines once on first run.)
+(The terminal IDE shows these guidelines each time it launches — press any key to continue.)
 
 ## Layout
 
