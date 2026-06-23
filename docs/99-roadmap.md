@@ -17,7 +17,7 @@ IDE for AI coding agents. Fully offline.
 | **Multi-agent** | bake-off picker → race chosen agents in isolated git worktrees |
 | **PTY capture** | `synapse run <cmd>` mirrors I/O + records commands/errors/exit |
 | **Robustness** | panic-safe terminal restore, redraw-on-change, `TestBackend` render tests |
-| **Distribution** | `cargo install --path synapse-cli` → global `synapse`; ~3.7 MB binary |
+| **Distribution** | `npm install -g athreix-synapse` → global `synapse`; ~3.7 MB binary |
 
 ## Commands
 

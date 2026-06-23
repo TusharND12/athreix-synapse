@@ -27,8 +27,6 @@ On macOS/Linux, if this fails with `EACCES` (permission denied):
 sudo npm install -g athreix-synapse --unsafe-perm
 ```
 
-(See [Build from source](#build-from-source) to build with cargo instead.)
-
 ## Use
 
 ```bash
@@ -76,8 +74,7 @@ correctness or deploy anything. You stay in control:
 
 ```bash
 synapse uninstall            # shows how to remove it; --purge also deletes Synapse data
-cargo uninstall synapse-cli  # if installed via cargo
-npm uninstall -g athreix-synapse   # if installed via npm
+npm uninstall -g athreix-synapse   # removes the command
 ```
 
 `synapse uninstall --purge` additionally removes `~/.synapse` (config) and the
@@ -91,12 +88,3 @@ synapse-core/   pure-Rust engine — events, store, snapshots, watcher, time
 synapse-cli/    the `synapse` binary — TUI + subcommands.
 docs/           design notes (historical).
 ```
-
-## Build from source
-
-```bash
-cargo build --release -p synapse-cli   # → target/release/synapse(.exe)
-cargo test                             # engine + CLI tests
-```
-
-Prereqs: the Rust toolchain (`rustup`). Fully offline; no Node, no GUI.

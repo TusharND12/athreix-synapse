@@ -34,4 +34,4 @@ agents ──observe──▶ EVENT STORE (SQLite) + SNAPSHOT STORE (content-add
 | [06-ambient-detection.md](./06-ambient-detection.md) | auto-detecting running agents |
 | [99-roadmap.md](./99-roadmap.md) | status + what's next |
 
-Run it: `cargo install --path synapse-cli`, then `synapse` in any project.
+Run it: `npm install -g athreix-synapse`, then `synapse` in any project.
