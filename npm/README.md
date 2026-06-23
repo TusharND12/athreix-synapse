@@ -18,11 +18,19 @@ cd my-project
 synapse
 ```
 
-If a prebuilt binary isn't available for your platform, build from source instead:
+### macOS / Linux: permission error?
+
+If `npm install -g` fails with `EACCES` (permission denied), run it with
+elevated permissions:
 
 ```bash
-cargo install --git https://github.com/TusharND12/athreix-synapse synapse-cli
+sudo npm install -g athreix-synapse --unsafe-perm
 ```
+
+The `--unsafe-perm` flag lets the installer download the binary when run under
+`sudo`. (Alternatively, point npm at a user-owned prefix so you never need
+`sudo`: `npm config set prefix ~/.npm-global` and add `~/.npm-global/bin` to
+your `PATH`.)
 
 ## Uninstall
 

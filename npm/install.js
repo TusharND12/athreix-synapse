@@ -39,7 +39,7 @@ function download(url, dest, cb, redirects = 0) {
 const asset = assetName();
 if (!asset) {
   console.warn(`[synapse] no prebuilt binary for ${process.platform}/${process.arch}.`);
-  console.warn(`[synapse] build from source: cargo install --git https://github.com/${REPO} synapse-cli`);
+  console.warn(`[synapse] supported: windows/macos/linux on x64/arm64.`);
   process.exit(0);
 }
 
@@ -52,7 +52,7 @@ console.log(`[synapse] downloading ${asset} …`);
 download(url, out, (err) => {
   if (err) {
     console.warn(`[synapse] download failed (${err.message}).`);
-    console.warn(`[synapse] build from source: cargo install --git https://github.com/${REPO} synapse-cli`);
+    console.warn(`[synapse] retry: npm install -g athreix-synapse (macOS/Linux: add sudo … --unsafe-perm)`);
     process.exit(0); // soft-fail so `npm install` doesn't break
   }
   if (process.platform !== "win32") {

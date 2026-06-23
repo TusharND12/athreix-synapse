@@ -11,8 +11,9 @@ const bin = path.join(
 const r = spawnSync(bin, process.argv.slice(2), { stdio: "inherit" });
 if (r.error) {
   console.error(
-    "[synapse] binary not found. Reinstall, or build from source:\n" +
-      "  cargo install --git https://github.com/TusharND12/athreix-synapse synapse-cli",
+    "[synapse] binary not found. Reinstall:\n" +
+      "  npm install -g athreix-synapse\n" +
+      "  # macOS/Linux permission error? sudo npm install -g athreix-synapse --unsafe-perm",
   );
   process.exit(1);
 }

@@ -18,8 +18,16 @@ all inside the terminal, on any OS. No editor, no plugins, no network.
 ## Install
 
 ```bash
-cargo install --path synapse-cli      # installs the `synapse` command (on PATH via ~/.cargo/bin)
+npm install -g athreix-synapse        # downloads the prebuilt `synapse` binary (win/macOS/linux · x64/arm64)
 ```
+
+On macOS/Linux, if this fails with `EACCES` (permission denied):
+
+```bash
+sudo npm install -g athreix-synapse --unsafe-perm
+```
+
+(See [Build from source](#build-from-source) to build with cargo instead.)
 
 ## Use
 

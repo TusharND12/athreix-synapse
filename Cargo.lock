@@ -1670,7 +1670,7 @@ dependencies = [
 
 [[package]]
 name = "synapse-cli"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "arboard",
  "clap",
@@ -1688,7 +1688,7 @@ dependencies = [
 
 [[package]]
 name = "synapse-core"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "flate2",
  "hex",

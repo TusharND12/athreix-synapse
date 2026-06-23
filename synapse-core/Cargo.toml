@@ -1,6 +1,6 @@
 [package]
 name = "synapse-core"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "Synapse engine — event store, snapshots, watcher, time machine, twin, explainability. No GUI, no network: fully offline."
 
