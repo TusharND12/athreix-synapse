@@ -853,6 +853,12 @@ pub fn run(root: PathBuf) -> Result<(), String> {
                     Focus::Git => gitst.sel = gitst.sel.saturating_sub(1),
                     Focus::Center if center == Center::Editor => editor_scroll = editor_scroll.saturating_sub(3),
                     Focus::Center if center == Center::Diff => diff_scroll = diff_scroll.saturating_sub(3),
+                    // Scroll back into the terminal's scrollback history.
+                    Focus::Center if center == Center::Term => {
+                        let p = &mut terms[active].parser;
+                        let cur = p.screen().scrollback();
+                        p.set_scrollback(cur + 3);
+                    }
                     _ => {}
                 },
                 MouseEventKind::ScrollDown => match focus {
@@ -864,6 +870,12 @@ pub fn run(root: PathBuf) -> Result<(), String> {
                     }
                     Focus::Center if center == Center::Editor => editor_scroll += 3,
                     Focus::Center if center == Center::Diff => diff_scroll += 3,
+                    // Scroll back toward the live prompt.
+                    Focus::Center if center == Center::Term => {
+                        let p = &mut terms[active].parser;
+                        let cur = p.screen().scrollback();
+                        p.set_scrollback(cur.saturating_sub(3));
+                    }
                     _ => {}
                 },
                 _ => {}
@@ -1101,9 +1113,38 @@ pub fn run(root: PathBuf) -> Result<(), String> {
 
         match focus {
             Focus::Center if center == Center::Term => {
-                if let Some(bytes) = key_to_bytes(k.code, k.modifiers) {
-                    let _ = terms[active].writer.write_all(&bytes);
-                    let _ = terms[active].writer.flush();
+                let shift = k.modifiers.contains(KeyModifiers::SHIFT);
+                let page = terms[active].parser.screen().size().0.saturating_sub(1).max(1) as usize;
+                match k.code {
+                    // Shift+PageUp/Down (and Shift+Up/Down) page through scrollback.
+                    KeyCode::PageUp if shift => {
+                        let p = &mut terms[active].parser;
+                        let cur = p.screen().scrollback();
+                        p.set_scrollback(cur + page);
+                    }
+                    KeyCode::PageDown if shift => {
+                        let p = &mut terms[active].parser;
+                        let cur = p.screen().scrollback();
+                        p.set_scrollback(cur.saturating_sub(page));
+                    }
+                    KeyCode::Up if shift => {
+                        let p = &mut terms[active].parser;
+                        let cur = p.screen().scrollback();
+                        p.set_scrollback(cur + 1);
+                    }
+                    KeyCode::Down if shift => {
+                        let p = &mut terms[active].parser;
+                        let cur = p.screen().scrollback();
+                        p.set_scrollback(cur.saturating_sub(1));
+                    }
+                    _ => {
+                        if let Some(bytes) = key_to_bytes(k.code, k.modifiers) {
+                            // Typing snaps the view back to the live prompt.
+                            terms[active].parser.set_scrollback(0);
+                            let _ = terms[active].writer.write_all(&bytes);
+                            let _ = terms[active].writer.flush();
+                        }
+                    }
                 }
             }
             Focus::Center => match k.code {
@@ -1347,11 +1388,17 @@ fn ui(
 
     // Center content
     let in_term = center == Center::Term;
+    let term_back = terms.get(active).map_or(0, |t| t.parser.screen().scrollback());
+    let term_title = if center == Center::Term && term_back > 0 {
+        format!(" Terminal  ↑{term_back} (type / Shift+PgDn → live) ")
+    } else {
+        " Terminal ".to_string()
+    };
     let cblock = Block::default()
         .borders(Borders::ALL)
         .border_style(border(theme, focus == Focus::Center))
         .title(match center {
-            Center::Term => " Terminal ",
+            Center::Term => term_title.as_str(),
             Center::Editor => " Preview ",
             Center::Diff => " Diff ",
         });
@@ -1362,7 +1409,8 @@ fn ui(
             let t = &terms[active];
             let sel_rel = (*sel).and_then(|s| norm_sel(inner, s));
             f.render_widget(Paragraph::new(screen_to_text(t.parser.screen(), sel_rel)), inner);
-            if focus == Focus::Center && sel_rel.is_none() {
+            // Only show the live cursor at the bottom of the buffer, not mid-history.
+            if focus == Focus::Center && sel_rel.is_none() && term_back == 0 {
                 let (cy, cx) = t.parser.screen().cursor_position();
                 f.set_cursor_position(Position::new(inner.x + cx, inner.y + cy));
             }
